@@ -1,415 +1,418 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Photo Gallery</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      background: #000;
-      width: 100vw;
-      height: 100vh;
-      overflow: hidden;
-      font-family: 'Helvetica Neue', sans-serif;
-    }
-    #board {
-      position: relative;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-    }
+  <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Photo Gallery</title>
+    <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body {
+                  background: #000;
+                  width: 100vw;
+                  height: 100vh;
+                  overflow: hidden;
+                  font-family: 'Helvetica Neue', sans-serif;
+          }
+          #board {
+                  position: relative;
+                  width: 100%;
+                  height: 100%;
+                  overflow: hidden;
+          }
 
-    /* ---- Circle Card (images + video) ---- */
-    .card {
-      position: absolute;
-      border-radius: 50%;
-      overflow: hidden;
-      cursor: grab;
-      user-select: none;
-      border: 2px solid rgba(255,255,255,0.08);
-      transition: box-shadow 0.2s;
-    }
-    .card:hover {
-      box-shadow: 0 0 6px 2px #ccff00, 0 0 20px 6px #ccff0099, 0 0 50px 12px #ccff0044;
-      z-index: 100 !important;
-    }
-    .card.dragging {
-      cursor: grabbing;
-      box-shadow: 0 24px 80px rgba(255,255,255,0.3);
-      scale: 1.06;
-      transition: box-shadow 0.15s, scale 0.15s;
-      z-index: 999 !important;
-    }
-    .card img {
-      display: block;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      pointer-events: none;
-      draggable: false;
-    }
+          /* ---- Circle Card (images + video) ---- */
+          .card {
+                  position: absolute;
+                  border-radius: 50%;
+                  overflow: hidden;
+                  cursor: grab;
+                  user-select: none;
+                  border: 2px solid rgba(255,255,255,0.08);
+                  transition: box-shadow 0.2s;
+          }
+          .card:hover {
+                  box-shadow: 0 0 6px 2px #ccff00, 0 0 20px 6px #ccff0099, 0 0 50px 12px #ccff0044;
+                  z-index: 100 !important;
+          }
+          .card.dragging {
+                  cursor: grabbing;
+                  box-shadow: 0 24px 80px rgba(255,255,255,0.3);
+                  scale: 1.06;
+                  transition: box-shadow 0.15s, scale 0.15s;
+                  z-index: 999 !important;
+          }
+          .card img {
+                  display: block;
+                  width: 100%;
+                  height: 100%;
+                  object-fit: cover;
+                  pointer-events: none;
+          }
 
-    /* Video card — iframe fills and centres */
-    .card iframe {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 177.78%;
-      height: 177.78%;
-      transform: translate(-50%, -50%);
-      pointer-events: none;
-      border: none;
-    }
+          /* Video card — iframe fills and centres */
+          .card iframe {
+                  position: absolute;
+                  top: 50%;
+                  left: 50%;
+                  width: 177.78%;
+                  height: 177.78%;
+                  transform: translate(-50%, -50%);
+                  pointer-events: none;
+                  border: none;
+          }
 
-    /* Hover label */
-    .card-label {
-      position: absolute;
-      bottom: 0; left: 0; right: 0;
-      padding: 28px 10px 10px;
-      background: radial-gradient(ellipse at bottom, rgba(0,0,0,0.6) 0%, transparent 100%);
-      color: #fff;
-      font-size: 11px;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      text-align: center;
-      opacity: 0;
-      transition: opacity 0.2s;
-      pointer-events: none;
-    }
-    .card:hover .card-label { opacity: 1; }
+          /* Hover label */
+          .card-label {
+                  position: absolute;
+                  bottom: 0; left: 0; right: 0;
+                  padding: 28px 10px 10px;
+                  background: radial-gradient(ellipse at bottom, rgba(0,0,0,0.6) 0%, transparent 100%);
+                  color: #fff;
+                  font-size: 11px;
+                  letter-spacing: 0.06em;
+                  text-transform: uppercase;
+                  text-align: center;
+                  opacity: 0;
+                  transition: opacity 0.2s;
+                  pointer-events: none;
+          }
+          .card:hover .card-label { opacity: 1; }
 
-    /* ---- Lightbox ---- */
-    #lightbox {
-      position: fixed; inset: 0; z-index: 9999;
-      display: flex; align-items: center; justify-content: center;
-    }
-    #lightbox.hidden { display: none; }
-    #lb-backdrop {
-      position: absolute; inset: 0;
-      background: rgba(0,0,0,0.88);
-      cursor: pointer;
-    }
-    #lb-panel {
-      position: relative; z-index: 1;
-      display: flex; align-items: stretch;
-      max-width: 90vw; max-height: 88vh;
-      background: #111;
-      border: 1px solid rgba(255,255,255,0.1);
-      box-shadow: 0 24px 80px rgba(0,0,0,0.9);
-      overflow: hidden;
-      animation: lb-in 0.22s ease;
-    }
-    @keyframes lb-in {
-      from { opacity: 0; transform: scale(0.93); }
-      to   { opacity: 1; transform: scale(1); }
-    }
-    #lb-close {
-      position: absolute; top: 14px; right: 14px; z-index: 2;
-      background: rgba(255,255,255,0.1);
-      border: none; color: #fff;
-      width: 32px; height: 32px; border-radius: 50%;
-      font-size: 14px; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      transition: background 0.15s;
-    }
-    #lb-close:hover { background: rgba(255,255,255,0.25); }
-    #lb-media {
-      flex: 0 0 auto;
-      max-width: 60vw; max-height: 88vh;
-      display: flex; align-items: center; justify-content: center;
-      background: #000;
-    }
-    #lb-img {
-      display: block;
-      max-width: 60vw; max-height: 88vh;
-      object-fit: contain;
-    }
-    #lb-video {
-      display: none;
-      width: 60vw; height: calc(60vw * 0.5625);
-      max-height: 88vh; border: none;
-    }
-    #lightbox.video-mode #lb-img  { display: none; }
-    #lightbox.video-mode #lb-video { display: block; }
-    #lb-info {
-      width: 280px; flex-shrink: 0;
-      padding: 48px 32px 32px;
-      display: flex; flex-direction: column; justify-content: center;
-      border-left: 1px solid rgba(255,255,255,0.07);
-      overflow-y: auto;
-    }
-    #lb-title {
-      color: #fff; font-size: 22px; font-weight: 600;
-      margin-bottom: 16px; letter-spacing: -0.01em;
-    }
-    #lb-desc { color: rgba(255,255,255,0.55); font-size: 14px; line-height: 1.7; }
+          /* ---- Lightbox ---- */
+          #lightbox {
+                  position: fixed; inset: 0; z-index: 9999;
+                  display: flex; align-items: center; justify-content: center;
+          }
+          #lightbox.hidden { display: none; }
+          #lb-backdrop {
+                  position: absolute; inset: 0;
+                  background: rgba(0,0,0,0.88);
+                  cursor: pointer;
+          }
+          #lb-panel {
+                  position: relative; z-index: 1;
+                  display: flex; align-items: stretch;
+                  max-width: 90vw; max-height: 88vh;
+                  background: #111;
+                  border: 1px solid rgba(255,255,255,0.1);
+                  box-shadow: 0 24px 80px rgba(0,0,0,0.9);
+                  overflow: hidden;
+                  animation: lb-in 0.22s ease;
+          }
+          @keyframes lb-in {
+                  from { opacity: 0; transform: scale(0.93); }
+                  to   { opacity: 1; transform: scale(1); }
+          }
+          #lb-close {
+                  position: absolute; top: 14px; right: 14px; z-index: 2;
+                  background: rgba(255,255,255,0.1);
+                  border: none; color: #fff;
+                  width: 32px; height: 32px; border-radius: 50%;
+                  font-size: 14px; cursor: pointer;
+                  display: flex; align-items: center; justify-content: center;
+                  transition: background 0.15s;
+          }
+          #lb-close:hover { background: rgba(255,255,255,0.25); }
+          #lb-media {
+                  flex: 0 0 auto;
+                  max-width: 60vw; max-height: 88vh;
+                  display: flex; align-items: center; justify-content: center;
+                  background: #000;
+          }
+          #lb-img {
+                  display: block;
+                  max-width: 60vw; max-height: 88vh;
+                  object-fit: contain;
+          }
+          #lb-video {
+                  display: none;
+                  width: 60vw; height: calc(60vw * 0.5625);
+                  max-height: 88vh; border: none;
+          }
+          #lightbox.video-mode #lb-img  { display: none; }
+          #lightbox.video-mode #lb-video { display: block; }
+          #lb-info {
+                  width: 280px; flex-shrink: 0;
+                  padding: 48px 32px 32px;
+                  display: flex; flex-direction: column; justify-content: center;
+                  border-left: 1px solid rgba(255,255,255,0.07);
+                  overflow-y: auto;
+          }
+          #lb-title {
+                  color: #fff; font-size: 22px; font-weight: 600;
+                  margin-bottom: 16px; letter-spacing: -0.01em;
+          }
+          #lb-desc { color: rgba(255,255,255,0.55); font-size: 14px; line-height: 1.7; }
 
-    /* ---- Mobile lightbox ---- */
-    @media (max-width: 600px) {
-      #lb-panel { flex-direction: column; max-width: 95vw; max-height: 92vh; }
-      #lb-media  { max-width: 95vw; }
-      #lb-img    { max-width: 95vw; }
-      #lb-video  { width: 95vw; height: calc(95vw * 0.5625); }
-      #lb-info   { width: 100%; border-left: none; border-top: 1px solid rgba(255,255,255,0.07); padding: 20px; }
-    }
-  </style>
-</head>
-<body>
-<div id="board"><!-- cards injected by JS --></div>
+          /* ---- Mobile lightbox ---- */
+          @media (max-width: 600px) {
+                  #lb-panel { flex-direction: column; max-width: 95vw; max-height: 92vh; }
+                  #lb-media  { max-width: 95vw; }
+                  #lb-img    { max-width: 95vw; }
+                  #lb-video  { width: 95vw; height: calc(95vw * 0.5625); }
+                  #lb-info   { width: 100%; border-left: none; border-top: 1px solid rgba(255,255,255,0.07); padding: 20px; }
+          }
+        </style>
+  </head>
+  <body>
+    <div id="board"></div>div>
 
-<div id="lightbox" class="hidden">
-  <div id="lb-backdrop"></div>
-  <div id="lb-panel">
-    <button id="lb-close">&#x2715;</button>
-    <div id="lb-media">
-      <img id="lb-img" src="" alt="">
-      <iframe id="lb-video" src="" frameborder="0"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowfullscreen></iframe>
-    </div>
-    <div id="lb-info">
-      <h2 id="lb-title"></h2>
-      <p id="lb-desc"></p>
-    </div>
-  </div>
-</div>
+    <div id="lightbox" class="hidden">
+        <div id="lb-backdrop"></div>div>
+        <div id="lb-panel">
+              <button id="lb-close">&#x2715;</button>button>
+              <div id="lb-media">
+                      <img id="lb-img" src="" alt="">
+                      <iframe id="lb-video" src="" frameborder="0"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowfullscreen></iframe>iframe>
+              </div>div>
+              <div id="lb-info">
+                      <h2 id="lb-title"></h2>h2>
+                      <p id="lb-desc"></p>p>
+              </div>div>
+        </div>div>
+    </div>div>
 
-<script>
-  /* ---- Mobile size scaling ---- */
-  function getCardSize(baseSize) {
-    var w = window.innerWidth;
-    if (w <= 480)      return Math.round(baseSize * 0.60); // phones
-    if (w <= 768)      return Math.round(baseSize * 0.75); // tablets
-    return baseSize;                                        // desktop
-  }
-
-  var IMAGES = [
-    { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/3b97ddcd6cc436a0c112eee76b2d32d4cf69f6c1/Rooster.jpg',                                          title: 'Rooster',                    desc: 'Illustration created in Procreate.',                                                                    size: 200 },
-    { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/3edd81e3f4108b3c761025a410376986dbfdb851/Isometric%20Night%20City.jpg',                          title: 'Isometric Night City',       desc: 'Created in Adobe Illustrator.',                                                                         size: 200 },
-    { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/42d7595f9eb5422c547243dc5b4b55dd18731ba3/artboard-3-03.jpg',                                      title: 'Psychadelic visual',         desc: 'Created in Adobe Illustrator.',                                                                         size: 200 },
-    { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/c26bccbec850f8a9fee046ee6bbe347ff4e0a909/day0018_103122.jpg',                                    title: '1',                          desc: 'Created in Adobe Illustrator.',                                                                         size: 200 },
-    { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/c26bccbec850f8a9fee046ee6bbe347ff4e0a909/day0020_110222.jpg',                                    title: '2',                          desc: 'Created in Adobe Illustrator.',                                                                         size: 200 },
-    { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/c26bccbec850f8a9fee046ee6bbe347ff4e0a909/day0026_110822.jpg',                                    title: '3',                          desc: 'Created in Adobe Illustrator.',                                                                         size: 200 },
-    { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/c26bccbec850f8a9fee046ee6bbe347ff4e0a909/day0027_110922.jpg',                                    title: '4',                          desc: 'Created in Adobe Illustrator.',                                                                         size: 200 },
-    { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/c26bccbec850f8a9fee046ee6bbe347ff4e0a909/day070_122222.jpg',                                     title: '5',                          desc: 'Created in Adobe Illustrator.',                                                                         size: 200 },
-    { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/c26bccbec850f8a9fee046ee6bbe347ff4e0a909/day072_122422.jpg',                                     title: '6',                          desc: 'Created in Adobe Illustrator.',                                                                         size: 200 },
-    { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/c26bccbec850f8a9fee046ee6bbe347ff4e0a909/day087_010823.jpg',                                     title: '7',                          desc: 'Created in Adobe Illustrator.',                                                                         size: 200 },
-    { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/bb3efe0a7b90734a864c4b68fb9e0e8bebcc855b/day0015_102822.jpg',                                   title: 'Poster face',                desc: 'Created in Adobe Illustrator.',                                                                         size: 200 },
-    { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/677eed82ebbec819338f0097bd6a13cbe4363475/Cover.jpg',                                            title: 'Gutter Kids Club',           desc: 'Created in Adobe Illustrator.',                                                                         size: 200 },
-    { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/42d7595f9eb5422c547243dc5b4b55dd18731ba3/artboard-6-06.jpg',                                     title: 'Psychadelic visual 2',       desc: 'Created in Adobe Illustrator.',                                                                         size: 200 },
-    { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/3edd81e3f4108b3c761025a410376986dbfdb851/day065_121722.jpg',                                     title: 'red poster',                 desc: 'Created in Adobe Illustrator.',                                                                         size: 200 },
-    { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/7c8723082d82fa124081ecc2518248dde700c7f5/Behance-Cover-tile_fruit.jpg',                          title: 'Vector Fruit Set',           desc: 'Created in Adobe Illustrator.',                                                                         size: 200 },
-    { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/335b49bca915d525d099ab57bc96a3d1b2532ff5/Angst%20Vagaries.JPG',                                  title: 'Illustration',               desc: 'Created in Procreate',                                                                                  size: 200 },
-    { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/96cc7e54adf004e9da584a8edb7faaecf3e3ee60/Bobcat.jpg',                                            title: 'Elementary School Mascott',  desc: 'Little cartoon character created for Clara Barton Elementary extracurricular programs.',                size: 200 },
-    { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/dcff84b8340bb06419040340b233b16b1436c069/underwater-poster_title.jpg',                           title: 'Underwater Poster',          desc: 'Created in Adobe Illustrator.',                                                                         size: 200 },
-    { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/335b49bca915d525d099ab57bc96a3d1b2532ff5/Acid-man.jpg',                                          title: 'Acid man',                   desc: 'Illustration created in Procreate',                                                                     size: 200 },
-    { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/main/day005_101822.jpg',                                                                          title: 'Day 005',                    desc: 'Daily work, Oct 18 2022.',                                                                              size: 200 }
-  ];
-
-  var VIDEOS = [
-    { id: 'aQr2VNIjWo8', title: 'Revline',                      desc: 'Motion and energy.',                                      size: 220 },
-    { id: 'PmroCF_Yfb0', title: 'Microsoft Demo for RFA',       desc: 'Short demo video created for Microsofts RFA team',       size: 220 },
-    { id: 'YeuTRxr3Hwg', title: 'Inviso Marketing Infographic', desc: 'Short sizzle video for Inviso Marketing.',                size: 220 },
-    { id: 'KOg82twyUVc', title: 'Analog Horror Short',          desc: 'little animation for a short analog horror series.',     size: 200 }
-  ];
-
-  /* ---- Lightbox ---- */
-  var lb      = document.getElementById('lightbox');
-  var lbImg   = document.getElementById('lb-img');
-  var lbVideo = document.getElementById('lb-video');
-  var lbClose = document.getElementById('lb-close');
-  var lbTitle = document.getElementById('lb-title');
-  var lbDesc  = document.getElementById('lb-desc');
-
-  function openImageLB(src, title, desc) {
-    lb.classList.remove('hidden', 'video-mode');
-    lbImg.src = src;  lbVideo.src = '';
-    lbTitle.textContent = title;  lbDesc.textContent = desc;
-  }
-  function openVideoLB(id, title, desc) {
-    lb.classList.remove('hidden');  lb.classList.add('video-mode');
-    lbImg.src = '';
-    lbVideo.src = 'https://www.youtube.com/embed/' + id + '?autoplay=1';
-    lbTitle.textContent = title;  lbDesc.textContent = desc;
-  }
-  function closeLightbox() {
-    lb.classList.add('hidden');  lbVideo.src = '';  lbImg.src = '';
-  }
-  lbClose.addEventListener('click', closeLightbox);
-  document.getElementById('lb-backdrop').addEventListener('click', closeLightbox);
-
-  /* ---- Draggable factory ---- */
-  function makeDraggable(el, floater, onTap) {
-    var isDragging = false, hasMoved = false;
-    var grabOffsetX = 0, grabOffsetY = 0;
-    var history = [];
-
-    function onPointerDown(e) {
-      e.preventDefault();
-      isDragging = true;  hasMoved = false;  floater.held = true;
-      var clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      var clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      var rect = el.getBoundingClientRect();
-      grabOffsetX = clientX - rect.left;
-      grabOffsetY = clientY - rect.top;
-      floater.vx = 0;  floater.vy = 0;
-      history = [{ x: clientX, y: clientY, t: Date.now() }];
-      el.classList.add('dragging');
-      el.style.zIndex = 1000;
-    }
-    function onPointerMove(e) {
-      if (!isDragging) return;
-      e.preventDefault();
-      var clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      var clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      floater.x = clientX - grabOffsetX;
-      floater.y = clientY - grabOffsetY;
-      el.style.left = floater.x + 'px';
-      el.style.top  = floater.y + 'px';
-      var now = Date.now();
-      history.push({ x: clientX, y: clientY, t: now });
-      history = history.filter(function(h) { return now - h.t < 80; });
-      hasMoved = true;
-    }
-    function onPointerUp(e) {
-      if (!isDragging) return;
-      isDragging = false;  floater.held = false;
-      el.classList.remove('dragging');  el.style.zIndex = '';
-      if (!hasMoved) { onTap(); return; }
-      if (history.length >= 2) {
-        var first = history[0], last = history[history.length - 1];
-        var dt = (last.t - first.t) / 1000 * 60;
-        if (dt > 0) {
-          floater.vx = (last.x - first.x) / dt;
-          floater.vy = (last.y - first.y) / dt;
+    <script>
+        /* ---- Mobile size scaling ---- */
+        function getCardSize(baseSize) {
+              var w = window.innerWidth;
+              if (w <= 480) return Math.round(baseSize * 0.60);
+              if (w <= 768) return Math.round(baseSize * 0.75);
+              return baseSize;
         }
-        var spd = Math.sqrt(floater.vx * floater.vx + floater.vy * floater.vy);
-        if (spd > 22) { floater.vx = floater.vx / spd * 22; floater.vy = floater.vy / spd * 22; }
-      } else {
-        floater.vx = (Math.random() - 0.5) * 0.4;
-        floater.vy = (Math.random() - 0.5) * 0.4;
-      }
-    }
-    el.addEventListener('mousedown', onPointerDown);
-    window.addEventListener('mousemove', onPointerMove);
-    window.addEventListener('mouseup', onPointerUp);
-    el.addEventListener('touchstart', onPointerDown, { passive: false });
-    window.addEventListener('touchmove', onPointerMove, { passive: false });
-    window.addEventListener('touchend', onPointerUp);
-  }
 
-  /* ---- Floater state factory ---- */
-  function makeFloater(size, idx, total) {
-    var board = document.getElementById('board');
-    var bw = board.offsetWidth, bh = board.offsetHeight;
-    var cols = Math.ceil(Math.sqrt(total || 1));
-    var rows = Math.ceil((total || 1) / cols);
-    var col  = (idx || 0) % cols;
-    var row  = Math.floor((idx || 0) / cols);
-    var cellW = (bw - size) / cols;
-    var cellH = (bh - size) / rows;
-    var jitterX = (Math.random() - 0.5) * cellW * 0.5;
-    var jitterY = (Math.random() - 0.5) * cellH * 0.5;
-    var x = size/2 + col * cellW + cellW/2 + jitterX;
-    var y = size/2 + row * cellH + cellH/2 + jitterY;
-    var angle = Math.random() * Math.PI * 2;
-    var speed = 0.18 + Math.random() * 0.12;
-    return {
-      x: x, y: y,
-      vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
-      baseSpeed: speed,
-      rot: (Math.random() - 0.5) * 20,
-      rotSpeed: (Math.random() - 0.5) * 0.025,
-      held: false
-    };
-  }
+        var IMAGES = [
+          { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/3b97ddcd6cc436a0c112eee76b2d32d4cf69f6c1/Rooster.jpg', title: 'Rooster', desc: 'Illustration created in Procreate.', size: 200 },
+          { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/3edd81e3f4108b3c761025a410376986dbfdb851/Isometric%20Night%20City.jpg', title: 'Isometric Night City', desc: 'Created in Adobe Illustrator.', size: 200 },
+          { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/42d7595f9eb5422c547243dc5b4b55dd18731ba3/artboard-3-03.jpg', title: 'Psychadelic visual', desc: 'Created in Adobe Illustrator.', size: 200 },
+          { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/c26bccbec850f8a9fee046ee6bbe347ff4e0a909/day0018_103122.jpg', title: '1', desc: 'Created in Adobe Illustrator.', size: 200 },
+          { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/c26bccbec850f8a9fee046ee6bbe347ff4e0a909/day0020_110222.jpg', title: '2', desc: 'Created in Adobe Illustrator.', size: 200 },
+          { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/c26bccbec850f8a9fee046ee6bbe347ff4e0a909/day0026_110822.jpg', title: '3', desc: 'Created in Adobe Illustrator.', size: 200 },
+          { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/c26bccbec850f8a9fee046ee6bbe347ff4e0a909/day0027_110922.jpg', title: '4', desc: 'Created in Adobe Illustrator.', size: 200 },
+          { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/c26bccbec850f8a9fee046ee6bbe347ff4e0a909/day070_122222.jpg', title: '5', desc: 'Created in Adobe Illustrator.', size: 200 },
+          { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/c26bccbec850f8a9fee046ee6bbe347ff4e0a909/day072_122422.jpg', title: '6', desc: 'Created in Adobe Illustrator.', size: 200 },
+          { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/c26bccbec850f8a9fee046ee6bbe347ff4e0a909/day087_010823.jpg', title: '7', desc: 'Created in Adobe Illustrator.', size: 200 },
+          { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/bb3efe0a7b90734a864c4b68fb9e0e8bebcc855b/day0015_102822.jpg', title: 'Poster face', desc: 'Created in Adobe Illustrator.', size: 200 },
+          { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/677eed82ebbec819338f0097bd6a13cbe4363475/Cover.jpg', title: 'Gutter Kids Club', desc: 'Created in Adobe Illustrator.', size: 200 },
+          { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/42d7595f9eb5422c547243dc5b4b55dd18731ba3/artboard-6-06.jpg', title: 'Psychadelic visual 2', desc: 'Created in Adobe Illustrator.', size: 200 },
+          { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/3edd81e3f4108b3c761025a410376986dbfdb851/day065_121722.jpg', title: 'red poster', desc: 'Created in Adobe Illustrator.', size: 200 },
+          { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/7c8723082d82fa124081ecc2518248dde700c7f5/Behance-Cover-tile_fruit.jpg', title: 'Vector Fruit Set', desc: 'Created in Adobe Illustrator.', size: 200 },
+          { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/335b49bca915d525d099ab57bc96a3d1b2532ff5/Angst%20Vagaries.JPG', title: 'Illustration', desc: 'Created in Procreate', size: 200 },
+          { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/96cc7e54adf004e9da584a8edb7faaecf3e3ee60/Bobcat.jpg', title: 'Elementary School Mascott', desc: 'Little cartoon character created for Clara Barton Elementary extracurricular programs.', size: 200 },
+          { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/dcff84b8340bb06419040340b233b16b1436c069/underwater-poster_title.jpg', title: 'Underwater Poster', desc: 'Created in Adobe Illustrator.', size: 200 },
+          { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/335b49bca915d525d099ab57bc96a3d1b2532ff5/Acid-man.jpg', title: 'Acid man', desc: 'Illustration created in Procreate', size: 200 },
+          { src: 'https://raw.githubusercontent.com/mikiehldesign-max/Work-images/main/day005_101822.jpg', title: 'Day 005', desc: 'Daily work, Oct 18 2022.', size: 200 }
+            ];
 
-  /* ---- Image card factory ---- */
-  function makeImageCard(data, idx) {
-    var size = getCardSize(data.size);  // ← scaled size
-    var el = document.createElement('div');
-    el.className = 'card';
-    el.style.width  = size + 'px';
-    el.style.height = size + 'px';
-    var img = document.createElement('img');
-    img.src = data.src;  img.draggable = false;
-    el.appendChild(img);
-    var label = document.createElement('div');
-    label.className = 'card-label';
-    label.textContent = data.title;
-    el.appendChild(label);
-    var floater = makeFloater(size, idx, IMAGES.length + VIDEOS.length);
-    el.style.left = floater.x + 'px';
-    el.style.top  = floater.y + 'px';
-    makeDraggable(el, floater, function() { openImageLB(data.src, data.title, data.desc); });
-    document.getElementById('board').appendChild(el);
-    return floater;
-  }
+        var VIDEOS = [
+          { id: 'aQr2VNIjWo8', title: 'Revline', desc: 'Motion and energy.', size: 220 },
+          { id: 'PmroCF_Yfb0', title: 'Microsoft Demo for RFA', desc: 'Short demo video created for Microsofts RFA team', size: 220 },
+          { id: 'YeuTRxr3Hwg', title: 'Inviso Marketing Infographic', desc: 'Short sizzle video for Inviso Marketing.', size: 220 },
+          { id: 'KOg82twyUVc', title: 'Analog Horror Short', desc: 'little animation for a short analog horror series.', size: 200 }
+            ];
 
-  /* ---- Video card factory ---- */
-  function makeVideoCard(data, idx) {
-    var size = getCardSize(data.size);  // ← scaled size
-    var el = document.createElement('div');
-    el.className = 'card';
-    el.style.width  = size + 'px';
-    el.style.height = size + 'px';
-    var iframe = document.createElement('iframe');
-    iframe.src = 'https://www.youtube.com/embed/' + data.id + '?mute=1&controls=0&loop=1&playlist=' + data.id;
-    iframe.setAttribute('frameborder', '0');
-    iframe.setAttribute('allow', 'autoplay; encrypted-media');
-    el.appendChild(iframe);
-    var overlay = document.createElement('div');
-    overlay.className = 'card-overlay';
-    el.appendChild(overlay);
-    var label = document.createElement('div');
-    label.className = 'card-label';
-    label.textContent = data.title;
-    el.appendChild(label);
-    var floater = makeFloater(size, IMAGES.length + idx, IMAGES.length + VIDEOS.length);
-    el.style.left = floater.x + 'px';
-    el.style.top  = floater.y + 'px';
-    makeDraggable(el, floater, function() { openVideoLB(data.id, data.title, data.desc); });
-    document.getElementById('board').appendChild(el);
-    return floater;
-  }
+        /* ---- Lightbox ---- */
+        var lb      = document.getElementById('lightbox');
+        var lbImg   = document.getElementById('lb-img');
+        var lbVideo = document.getElementById('lb-video');
+        var lbClose = document.getElementById('lb-close');
+        var lbTitle = document.getElementById('lb-title');
+        var lbDesc  = document.getElementById('lb-desc');
 
-  /* ---- Animation loop ---- */
-  var floaters = [];
-  function animateFloat() {
-    requestAnimationFrame(animateFloat);
-    var board = document.getElementById('board');
-    var bw = board.offsetWidth, bh = board.offsetHeight;
-    var cards = board.querySelectorAll('.card');
-    for (var i = 0; i < floaters.length; i++) {
-      var f  = floaters[i];
-      var el = cards[i];
-      if (!el || f.held) continue;
-      var size = parseFloat(el.style.width);
-      var spd = Math.sqrt(f.vx * f.vx + f.vy * f.vy);
-      if (spd > f.baseSpeed) { f.vx *= 0.96; f.vy *= 0.96; }
-      f.x += f.vx;  f.y += f.vy;
-      if (f.x <= 0)          { f.x = 0;          f.vx =  Math.abs(f.vx); }
-      if (f.x >= bw - size)  { f.x = bw - size;  f.vx = -Math.abs(f.vx); }
-      if (f.y <= 0)          { f.y = 0;          f.vy =  Math.abs(f.vy); }
-      if (f.y >= bh - size)  { f.y = bh - size;  f.vy = -Math.abs(f.vy); }
-      f.rot += f.rotSpeed;
-      if (f.rot >  30) { f.rot =  30; f.rotSpeed = -Math.abs(f.rotSpeed); }
-      if (f.rot < -30) { f.rot = -30; f.rotSpeed =  Math.abs(f.rotSpeed); }
-      el.style.left      = f.x + 'px';
-      el.style.top       = f.y + 'px';
-      el.style.transform = 'rotate(' + f.rot + 'deg)';
-    }
-  }
+        function openImageLB(src, title, desc) {
+              lb.classList.remove('hidden', 'video-mode');
+              lbImg.src = src; lbVideo.src = '';
+              lbTitle.textContent = title; lbDesc.textContent = desc;
+        }
+        function openVideoLB(id, title, desc) {
+              lb.classList.remove('hidden'); lb.classList.add('video-mode');
+              lbImg.src = '';
+              lbVideo.src = 'https://www.youtube.com/embed/' + id + '?autoplay=1';
+              lbTitle.textContent = title; lbDesc.textContent = desc;
+        }
+        function closeLightbox() {
+              lb.classList.add('hidden'); lbVideo.src = ''; lbImg.src = '';
+        }
+        lbClose.addEventListener('click', closeLightbox);
+        document.getElementById('lb-backdrop').addEventListener('click', closeLightbox);
 
-  /* ---- Init ---- */
-  function init() {
-    floaters = [];
-    IMAGES.forEach(function(data, i) { floaters.push(makeImageCard(data, i)); });
-    VIDEOS.forEach(function(data, i) { floaters.push(makeVideoCard(data, i)); });
-    requestAnimationFrame(animateFloat);
-  }
-  requestAnimationFrame(function() { requestAnimationFrame(init); });
-</script>
-</body>
-</html>
+        /* ---- Draggable factory ---- */
+        function makeDraggable(el, floater, onTap) {
+              var isDragging = false, hasMoved = false;
+              var grabOffsetX = 0, grabOffsetY = 0;
+              var history = [];
+
+              function onPointerDown(e) {
+                      e.preventDefault();
+                      isDragging = true; hasMoved = false; floater.held = true;
+                      var clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                      var clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                      var rect = el.getBoundingClientRect();
+                      grabOffsetX = clientX - rect.left;
+                      grabOffsetY = clientY - rect.top;
+                      floater.vx = 0; floater.vy = 0;
+                      history = [{ x: clientX, y: clientY, t: Date.now() }];
+                      el.classList.add('dragging');
+                      el.style.zIndex = 1000;
+              }
+              function onPointerMove(e) {
+                      if (!isDragging) return;
+                      e.preventDefault();
+                      var clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                      var clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                      floater.x = clientX - grabOffsetX;
+                      floater.y = clientY - grabOffsetY;
+                      el.style.left = floater.x + 'px';
+                      el.style.top  = floater.y + 'px';
+                      var now = Date.now();
+                      history.push({ x: clientX, y: clientY, t: now });
+                      history = history.filter(function(h) { return now - h.t < 80; });
+                      hasMoved = true;
+              }
+              function onPointerUp(e) {
+                      if (!isDragging) return;
+                      isDragging = false; floater.held = false;
+                      el.classList.remove('dragging'); el.style.zIndex = '';
+                      if (!hasMoved) { onTap(); return; }
+                      if (history.length >= 2) {
+                                var first = history[0], last = history[history.length - 1];
+                                var dt = (last.t - first.t) / 1000 * 60;
+                                if (dt > 0) {
+                                            floater.vx = (last.x - first.x) / dt;
+                                            floater.vy = (last.y - first.y) / dt;
+                                }
+                                var spd = Math.sqrt(floater.vx * floater.vx + floater.vy * floater.vy);
+                                if (spd > 22) { floater.vx = floater.vx / spd * 22; floater.vy = floater.vy / spd * 22; }
+                      } else {
+                                floater.vx = (Math.random() - 0.5) * 0.4;
+                                floater.vy = (Math.random() - 0.5) * 0.4;
+                      }
+              }
+              el.addEventListener('mousedown', onPointerDown);
+              window.addEventListener('mousemove', onPointerMove);
+              window.addEventListener('mouseup', onPointerUp);
+              el.addEventListener('touchstart', onPointerDown, { passive: false });
+              window.addEventListener('touchmove', onPointerMove, { passive: false });
+              window.addEventListener('touchend', onPointerUp);
+        }
+
+        /* ---- Floater state factory ---- */
+        function makeFloater(size, idx, total) {
+              var board = document.getElementById('board');
+              var bw = board.offsetWidth, bh = board.offsetHeight;
+              var cols = Math.ceil(Math.sqrt(total || 1));
+              var rows = Math.ceil((total || 1) / cols);
+              var col  = (idx || 0) % cols;
+              var row  = Math.floor((idx || 0) / cols);
+              var cellW = (bw - size) / cols;
+              var cellH = (bh - size) / rows;
+              var jitterX = (Math.random() - 0.5) * cellW * 0.5;
+              var jitterY = (Math.random() - 0.5) * cellH * 0.5;
+              var x = size/2 + col * cellW + cellW/2 + jitterX;
+              var y = size/2 + row * cellH + cellH/2 + jitterY;
+              var angle = Math.random() * Math.PI * 2;
+              var speed = 0.18 + Math.random() * 0.12;
+              return {
+                      x: x, y: y,
+                      vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+                      baseSpeed: speed,
+                      rot: (Math.random() - 0.5) * 20,
+                      rotSpeed: (Math.random() - 0.5) * 0.025,
+                      held: false
+              };
+        }
+
+        /* ---- Image card factory ---- */
+        function makeImageCard(data, idx) {
+              var size = getCardSize(data.size);
+              var el = document.createElement('div');
+              el.className = 'card';
+              el.style.width  = size + 'px';
+              el.style.height = size + 'px';
+              var img = document.createElement('img');
+              img.src = data.src; img.draggable = false;
+              el.appendChild(img);
+              var label = document.createElement('div');
+              label.className = 'card-label';
+              label.textContent = data.title;
+              el.appendChild(label);
+              var floater = makeFloater(size, idx, IMAGES.length + VIDEOS.length);
+              el.style.left = floater.x + 'px';
+              el.style.top  = floater.y + 'px';
+              makeDraggable(el, floater, function() { openImageLB(data.src, data.title, data.desc); });
+              document.getElementById('board').appendChild(el);
+              return floater;
+        }
+
+        /* ---- Video card factory ---- */
+        function makeVideoCard(data, idx) {
+              var size = getCardSize(data.size);
+              var el = document.createElement('div');
+              el.className = 'card';
+              el.style.width  = size + 'px';
+              el.style.height = size + 'px';
+              var iframe = document.createElement('iframe');
+              iframe.src = 'https://www.youtube.com/embed/' + data.id + '?mute=1&controls=0&loop=1&playlist=' + data.id;
+              iframe.setAttribute('frameborder', '0');
+              iframe.setAttribute('allow', 'autoplay; encrypted-media');
+              el.appendChild(iframe);
+              var overlay = document.createElement('div');
+              overlay.className = 'card-overlay';
+              el.appendChild(overlay);
+              var label = document.createElement('div');
+              label.className = 'card-label';
+              label.textContent = data.title;
+              el.appendChild(label);
+              var floater = makeFloater(size, IMAGES.length + idx, IMAGES.length + VIDEOS.length);
+              el.style.left = floater.x + 'px';
+              el.style.top  = floater.y + 'px';
+              makeDraggable(el, floater, function() { openVideoLB(data.id, data.title, data.desc); });
+              document.getElementById('board').appendChild(el);
+              return floater;
+        }
+
+        /* ---- Animation loop ---- */
+        var floaters = [];
+        function animateFloat() {
+              requestAnimationFrame(animateFloat);
+              var board = document.getElementById('board');
+              var bw = board.offsetWidth, bh = board.offsetHeight;
+              var cards = board.querySelectorAll('.card');
+              for (var i = 0; i < floaters.length; i++) {
+                      var f  = floaters[i];
+                      var el = cards[i];
+                      if (!el || f.held) continue;
+                      var size = parseFloat(el.style.width);
+                      var spd = Math.sqrt(f.vx * f.vx + f.vy * f.vy);
+                      if (spd > f.baseSpeed) { f.vx *= 0.96; f.vy *= 0.96; }
+                      f.x += f.vx; f.y += f.vy;
+                      if (f.x <= 0)         { f.x = 0;         f.vx =  Math.abs(f.vx); }
+                      if (f.x >= bw - size) { f.x = bw - size; f.vx = -Math.abs(f.vx); }
+                      if (f.y <= 0)         { f.y = 0;         f.vy =  Math.abs(f.vy); }
+                      if (f.y >= bh - size) { f.y = bh - size; f.vy = -Math.abs(f.vy); }
+                      f.rot += f.rotSpeed;
+                      if (f.rot >  30) { f.rot =  30; f.rotSpeed = -Math.abs(f.rotSpeed); }
+                      if (f.rot < -30) { f.rot = -30; f.rotSpeed =  Math.abs(f.rotSpeed); }
+                      el.style.left      = f.x + 'px';
+                      el.style.top       = f.y + 'px';
+                      el.style.transform = 'rotate(' + f.rot + 'deg)';
+              }
+        }
+
+        /* ---- Init ---- */
+        function init() {
+              floaters = [];
+              IMAGES.forEach(function(data, i) { floaters.push(makeImageCard(data, i)); });
+              VIDEOS.forEach(function(data, i) { floaters.push(makeVideoCard(data, i)); });
+              requestAnimationFrame(animateFloat);
+        }
+        requestAnimationFrame(function() { requestAnimationFrame(init); });
+    </script>
+  </body>
+</html>html>
+    </script>
+  </body>
+    </style></title>
+  </head>
