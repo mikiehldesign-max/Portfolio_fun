@@ -380,7 +380,7 @@
               * minDist = rA + rB - 0.3 * min(rA, rB)
                  * When closer than minDist, nudge velocities apart (soft repulsion).
                     */
-        var OVERLAP_ALLOW = 0.30; // fraction of smaller radius allowed to overlap
+        var OVERLAP_ALLOW = 0.50; // fraction of smaller radius allowed to overlap
 
         function resolveCollisions() {
               for (var i = 0; i < floaters.length; i++) {
