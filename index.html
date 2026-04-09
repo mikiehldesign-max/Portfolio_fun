@@ -52,10 +52,8 @@
           /* Video card — iframe fills and centres */
           .card iframe {
                   position: absolute;
-                  top: 50%;
-                  left: 50%;
-                  width: 177.78%;
-                  height: 177.78%;
+                  top: 50%; left: 50%;
+                  width: 177.78%; height: 177.78%;
                   transform: translate(-50%, -50%);
                   pointer-events: none;
                   border: none;
@@ -320,7 +318,8 @@
                       baseSpeed: speed,
                       rot: (Math.random() - 0.5) * 20,
                       rotSpeed: (Math.random() - 0.5) * 0.025,
-                      held: false
+                      held: false,
+                      r: size / 2
               };
         }
 
@@ -375,11 +374,52 @@
 
         /* ---- Animation loop ---- */
         var floaters = [];
+
+        /*
+           * Overlap limit: two circles may overlap up to 30% of the smaller radius.
+              * minDist = rA + rB - 0.3 * min(rA, rB)
+                 * When closer than minDist, nudge velocities apart (soft repulsion).
+                    */
+        var OVERLAP_ALLOW = 0.30; // fraction of smaller radius allowed to overlap
+
+        function resolveCollisions() {
+              for (var i = 0; i < floaters.length; i++) {
+                      var a = floaters[i];
+                      for (var j = i + 1; j < floaters.length; j++) {
+                                var b = floaters[j];
+                                // centres: floater.x/y is top-left corner, so centre = x + r
+                                var ax = a.x + a.r, ay = a.y + a.r;
+                                var bx = b.x + b.r, by = b.y + b.r;
+                                var dx = bx - ax, dy = by - ay;
+                                var dist = Math.sqrt(dx * dx + dy * dy);
+                                var minDist = a.r + b.r - OVERLAP_ALLOW * Math.min(a.r, b.r);
+                                if (dist < minDist && dist > 0.01) {
+                                            // Unit vector from a -> b
+                                            var nx = dx / dist, ny = dy / dist;
+                                            // How much we need to push
+                                            var overlap = minDist - dist;
+                                            // Gentle push: scale by overlap amount so it feels springy not snappy
+                                            var push = overlap * 0.04;
+                                            if (!a.held) { a.vx -= nx * push; a.vy -= ny * push; }
+                                            if (!b.held) { b.vx += nx * push; b.vy += ny * push; }
+                                            // Also positionally nudge apart slightly so they don't tunnel when stationary
+                                            if (!a.held && !b.held) {
+                                                          var sep = overlap * 0.15;
+                                                          a.x -= nx * sep; a.y -= ny * sep;
+                                                          b.x += nx * sep; b.y += ny * sep;
+                                            }
+                                }
+                      }
+              }
+        }
+
         function animateFloat() {
               requestAnimationFrame(animateFloat);
               var board = document.getElementById('board');
               var bw = board.offsetWidth, bh = board.offsetHeight;
               var cards = board.querySelectorAll('.card');
+
+              // Move each floater
               for (var i = 0; i < floaters.length; i++) {
                       var f  = floaters[i];
                       var el = cards[i];
@@ -395,6 +435,16 @@
                       f.rot += f.rotSpeed;
                       if (f.rot >  30) { f.rot =  30; f.rotSpeed = -Math.abs(f.rotSpeed); }
                       if (f.rot < -30) { f.rot = -30; f.rotSpeed =  Math.abs(f.rotSpeed); }
+              }
+
+              // Resolve collisions after all positions updated
+              resolveCollisions();
+
+              // Write positions to DOM
+              for (var i = 0; i < floaters.length; i++) {
+                      var f  = floaters[i];
+                      var el = cards[i];
+                      if (!el) continue;
                       el.style.left      = f.x + 'px';
                       el.style.top       = f.y + 'px';
                       el.style.transform = 'rotate(' + f.rot + 'deg)';
